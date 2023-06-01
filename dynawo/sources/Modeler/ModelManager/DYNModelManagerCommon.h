@@ -26,16 +26,16 @@
 #include <cerrno>
 #include <cmath>
 
-#define MODELICA_STRING_H_    ///< to avoid definition of macro in modelica_string.h
-#define OPENMODELICA_TYPES_H_ ///< to avoid definition of modelica_type
-#define BASE_ARRAY_H_         ///< to avoid definition of base_array functions/types
-#define BOOLEAN_ARRAY_H_      ///< to avoid definition of boolean_array functions/types
-#define STRING_ARRAY_H_       ///< to avoid definition of string_array functions/types
-#define REAL_ARRAY_H_         ///< to avoid definition of real_array functions/types
-#define INTEGER_ARRAY_H_      ///< to avoid definition of integer_array functions/types
+#define MODELICA_STRING_H_  ///< to avoid definition of macro in modelica_string.h
+#define OPENMODELICA_TYPES_H_  ///< to avoid definition of modelica_type
+#define BASE_ARRAY_H_   ///< to avoid definition of base_array functions/types
+#define BOOLEAN_ARRAY_H_   ///< to avoid definition of boolean_array functions/types
+#define STRING_ARRAY_H_   ///< to avoid definition of string_array functions/types
+#define REAL_ARRAY_H_   ///< to avoid definition of real_array functions/types
+#define INTEGER_ARRAY_H_   ///< to avoid definition of integer_array functions/types
 
 #ifdef _MSC_VER
-#define OMC_NO_THREADS ///< to avoid inclusion of pthread.h
+#define OMC_NO_THREADS   ///< to avoid inclusion of pthread.h
 #endif
 
 #include "DYNError.h"
@@ -44,7 +44,7 @@
 #include "DYNMessage.hpp"
 #include "DYNMessageTimeline.h"
 #include "DYNTimeline_keys.h"
-#include "DYNModelManagerOwnTypes.h" ///< redefinition of local own types : should be before simulation_data.h
+#include "DYNModelManagerOwnTypes.h"  ///< redefinition of local own types : should be before simulation_data.h
 #include "DYNModelicaOverridenFunctions.h"
 #ifdef __clang__
 #pragma clang diagnostic push
@@ -56,30 +56,30 @@
 #pragma clang diagnostic ignored "-Wold-style-cast"
 #pragma clang diagnostic ignored "-Wreserved-id-macro"
 #pragma clang diagnostic ignored "-Wundef"
-#endif // __clang__
+#endif  // __clang__
 #include "simulation_data.h"
 #ifdef __clang__
 #pragma clang diagnostic pop
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wreserved-id-macro"
-#endif // __clang__
+#endif  // __clang__
 #include "ModelicaStandardTables.h"
 #include "ModelicaStrings.h"
 #ifdef __clang__
 #pragma clang diagnostic pop
-#endif                                   // __clang__
-#include "DYNModelManagerOwnFunctions.h" ///< redefinition of local own functions
+#endif  // __clang__
+#include "DYNModelManagerOwnFunctions.h"  ///< redefinition of local own functions
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wundef"
-#endif // __clang__
+#endif  // __clang__
 #include "ModelicaUtilities.h"
 #ifdef __clang__
 #pragma clang diagnostic pop
-#endif // __clang__
+#endif  // __clang__
 
 #ifdef _MSC_VER
-#undef isnan // undef macros defined in omc.msvc.h !
+#undef isnan    // undef macros defined in omc.msvc.h !
 #undef isinf
 #endif
 
@@ -92,18 +92,14 @@
  * @param index position of the relation in the relationsPre map
  * @param op_w operator to used
  */
-#define RELATIONHYSTERESIS(res, exp1, exp2, index, op_w) \
-  {                                                      \
-    if (data->simulationInfo->discreteCall == 0)         \
-    {                                                    \
-      res = data->simulationInfo->relationsPre[index];   \
-    }                                                    \
-    else                                                 \
-    {                                                    \
-      res = ((op_w)((exp1), (exp2)));                    \
-      data->simulationInfo->relations[index] = res;      \
-    }                                                    \
-  }
+#define RELATIONHYSTERESIS(res, exp1, exp2, index, op_w) { \
+  if (data->simulationInfo->discreteCall == 0) { \
+    res = data->simulationInfo->relationsPre[index]; \
+  } else { \
+    res = ((op_w)((exp1), (exp2))); \
+    data->simulationInfo->relations[index] = res; \
+  } \
+}
 
 /**
  * @brief definition of _event_ceil function
@@ -115,13 +111,11 @@
  * @return Returns the smallest integer not less than x.
  * Result and argument shall have type Real.
  */
-inline modelica_real _event_ceil(modelica_real x, modelica_integer index, DATA *data)
-{
-  modelica_real value;
-  if (data->simulationInfo->discreteCall == 1)
-  {
+inline modelica_real  _event_ceil(modelica_real x, modelica_integer index, DATA *data) {
+  modelica_real value;\
+  if (data->simulationInfo->discreteCall == 1) {
     data->simulationInfo->mathEventsValuePre[index] = x;
-  }
+  } \
   value = data->simulationInfo->mathEventsValuePre[index];
   return static_cast<modelica_real>(std::ceil(value));
 }
@@ -135,13 +129,11 @@ inline modelica_real _event_ceil(modelica_real x, modelica_integer index, DATA *
  *  @return Returns the largest integer not greater than x.
  * Result and argument shall have type Real.
  */
-inline modelica_real _event_floor(modelica_real x, modelica_integer index, DATA *data)
-{
+inline modelica_real _event_floor(modelica_real x, modelica_integer index, DATA *data) {
   modelica_real value;
-  if (data->simulationInfo->discreteCall == 1)
-  {
+  if (data->simulationInfo->discreteCall == 1) {
     data->simulationInfo->mathEventsValuePre[index] = x;
-  }
+  } \
   value = data->simulationInfo->mathEventsValuePre[index];
   return static_cast<modelica_real>(std::floor(value));
 }
@@ -155,13 +147,11 @@ inline modelica_real _event_floor(modelica_real x, modelica_integer index, DATA 
  *
  *  @return Returns the largest integer not greater than x.
  */
-inline modelica_integer _event_integer(modelica_real x, modelica_integer index, DATA *data)
-{
+inline modelica_integer _event_integer(modelica_real x, modelica_integer index, DATA *data) {
   modelica_real value;
-  if (data->simulationInfo->discreteCall == 1)
-  {
+  if (data->simulationInfo->discreteCall == 1) {
     data->simulationInfo->mathEventsValuePre[index] = x;
-  }
+  } \
   value = data->simulationInfo->mathEventsValuePre[index];
   return static_cast<modelica_integer>(std::floor(value));
 }
@@ -176,21 +166,20 @@ inline modelica_integer _event_integer(modelica_real x, modelica_integer index, 
  *
  * @return Returns the algebraic quotient x/y with any fractional part discarded
  */
-inline modelica_real _event_div_real(modelica_real x1, modelica_real x2, modelica_integer index, DATA *data)
-{
+inline modelica_real _event_div_real(modelica_real x1, modelica_real x2, modelica_integer index, DATA *data) {
   modelica_real value1;
   modelica_real value2;
-  if (data->simulationInfo->discreteCall && !data->simulationInfo->solveContinuous)
-  {
+  if (data->simulationInfo->discreteCall && !data->simulationInfo->solveContinuous) {
     data->simulationInfo->mathEventsValuePre[index] = x1;
-    data->simulationInfo->mathEventsValuePre[index + 1] = x2;
+    data->simulationInfo->mathEventsValuePre[index+1] = x2;
   }
 
   value1 = data->simulationInfo->mathEventsValuePre[index];
-  value2 = data->simulationInfo->mathEventsValuePre[index + 1];
+  value2 = data->simulationInfo->mathEventsValuePre[index+1];
 
-  return trunc(value1 / value2);
+  return trunc(value1/value2);
 }
+
 
 /**
  * less operator definition
@@ -198,9 +187,8 @@ inline modelica_real _event_div_real(modelica_real x1, modelica_real x2, modelic
  * @param exp2 second operand
  * @return @b exp2 if exp2 is less than exp1, @b exp1 otherwise
  */
-template <typename T>
-T FMIN(T exp1, T exp2)
-{
+template<typename T>
+T FMIN(T exp1, T exp2) {
   if (Greater(exp1, exp2))
     return exp2;
   else
@@ -213,9 +201,8 @@ T FMIN(T exp1, T exp2)
  * @param exp2 second operand
  * @return @b exp1 if exp1 is greater than exp2, @b exp2 otherwise
  */
-template <typename T>
-T FMAX(T exp1, T exp2)
-{
+template<typename T>
+T FMAX(T exp1, T exp2) {
   if (Greater(exp1, exp2))
     return exp1;
   else
@@ -228,9 +215,8 @@ T FMAX(T exp1, T exp2)
  * @param b second operand
  * @return  @b true if a is less than b, @b false otherwise
  */
-template <typename T>
-modelica_boolean Less(T a, T b)
-{
+template<typename T>
+modelica_boolean Less(T a, T b) {
   return a < b;
 }
 
@@ -240,9 +226,8 @@ modelica_boolean Less(T a, T b)
  * @param b second operand
  * @return  @b true if a is greater than b, @b b otherwise
  */
-template <typename T>
-modelica_boolean Greater(T a, T b)
-{
+template<typename T>
+modelica_boolean Greater(T a, T b) {
   return a > b;
 }
 
@@ -252,9 +237,8 @@ modelica_boolean Greater(T a, T b)
  * @param b second operand
  * @return  @b true if a is less or equal to b, @b false otherwise
  */
-template <typename T>
-modelica_boolean LessEq(T a, T b)
-{
+template<typename T>
+modelica_boolean LessEq(T a, T b) {
   return a <= b;
 }
 
@@ -264,9 +248,8 @@ modelica_boolean LessEq(T a, T b)
  * @param b second operand
  * @return  @b true if a is greater or equal to b, @b false otherwise
  */
-template <typename T>
-modelica_boolean GreaterEq(T a, T b)
-{
+template<typename T>
+modelica_boolean GreaterEq(T a, T b) {
   return a >= b;
 }
 
@@ -276,9 +259,8 @@ modelica_boolean GreaterEq(T a, T b)
  * @param b second operand
  * @return  @b true if a is less than b, @b false otherwise
  */
-template <>
-inline modelica_boolean Less<double>(double a, double b)
-{
+template<>
+inline modelica_boolean Less<double>(double a, double b) {
   return DYN::doubleNotEquals(a, b) && a < b;
 }
 
@@ -288,9 +270,8 @@ inline modelica_boolean Less<double>(double a, double b)
  * @param b second operand
  * @return  @b true if a is greater than b, @b b otherwise
  */
-template <>
-inline modelica_boolean Greater<double>(double a, double b)
-{
+template<>
+inline modelica_boolean Greater<double>(double a, double b) {
   return DYN::doubleNotEquals(a, b) && a > b;
 }
 
@@ -300,9 +281,8 @@ inline modelica_boolean Greater<double>(double a, double b)
  * @param b second operand
  * @return  @b true if a is less or equal to b, @b false otherwise
  */
-template <>
-inline modelica_boolean LessEq<double>(double a, double b)
-{
+template<>
+inline modelica_boolean LessEq<double>(double a, double b) {
   return DYN::doubleEquals(a, b) || a < b;
 }
 
@@ -312,17 +292,16 @@ inline modelica_boolean LessEq<double>(double a, double b)
  * @param b second operand
  * @return  @b true if a is greater or equal to b, @b false otherwise
  */
-template <>
-inline modelica_boolean GreaterEq<double>(double a, double b)
-{
+template<>
+inline modelica_boolean GreaterEq<double>(double a, double b) {
   return DYN::doubleEquals(a, b) || a > b;
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
-#define LessZC(a, b, direction) Less(a, b)
-#define LessEqZC(a, b, direction) LessEq(a, b)
-#define GreaterZC(a, b, direction) Greater(a, b)
-#define GreaterEqZC(a, b, direction) GreaterEq(a, b)
+#define  LessZC(a, b, direction) Less(a, b)
+#define  LessEqZC(a, b, direction) LessEq(a, b)
+#define  GreaterZC(a, b, direction) Greater(a, b)
+#define  GreaterEqZC(a, b, direction) GreaterEq(a, b)
 
 #define addLogConstraintBegin(key) \
   addLogConstraintBegin_((this)->getModelManager(), (Message("CONSTRAINT", DYN::KeyConstraint_t::names(DYN::KeyConstraint_t::value(key)))))
@@ -332,32 +311,26 @@ inline modelica_boolean GreaterEq<double>(double a, double b)
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wc++98-compat-pedantic"
-#endif // __clang__
+#endif  // __clang__
 
 /**
  * @brief Macro to define a timeline message from a Modelica model
  * @param key key to find the message
  */
-#define DYNTimelineFromModelica(key, ...) (DYN::MessageTimeline(DYN::KeyTimeline_t::names(DYN::KeyTimeline_t::value(key))), ##__VA_ARGS__)
+#define DYNTimelineFromModelica(key, ...) (DYN::MessageTimeline(DYN::KeyTimeline_t::names(DYN::KeyTimeline_t::value(key))), ##__VA_ARGS__ )
 
-#define addLogEvent1(key)                       \
-  if ((this)->getModelManager()->hasTimeline()) \
+#define addLogEvent1(key) if ((this)->getModelManager()->hasTimeline()) \
   addLogEvent_((this)->getModelManager(), DYNTimelineFromModelica(key))
-#define addLogEvent2(key, arg1)                 \
-  if ((this)->getModelManager()->hasTimeline()) \
+#define addLogEvent2(key, arg1) if ((this)->getModelManager()->hasTimeline()) \
   addLogEvent_((this)->getModelManager(), DYNTimelineFromModelica(key, arg1))
-#define addLogEvent3(key, arg1, arg2)           \
-  if ((this)->getModelManager()->hasTimeline()) \
+#define addLogEvent3(key, arg1, arg2) if ((this)->getModelManager()->hasTimeline()) \
   addLogEvent_((this)->getModelManager(), DYNTimelineFromModelica(key, arg1, arg2))
-#define addLogEvent4(key, arg1, arg2, arg3)     \
-  if ((this)->getModelManager()->hasTimeline()) \
+#define addLogEvent4(key, arg1, arg2, arg3) if ((this)->getModelManager()->hasTimeline()) \
   addLogEvent_((this)->getModelManager(), DYNTimelineFromModelica(key, arg1, arg2, arg3))
-#define addLogEvent5(key, arg1, arg2, arg3, arg4) \
-  if ((this)->getModelManager()->hasTimeline())   \
+#define addLogEvent5(key, arg1, arg2, arg3, arg4) if ((this)->getModelManager()->hasTimeline()) \
   addLogEvent_((this)->getModelManager(), DYNTimelineFromModelica(key, arg1, arg2, arg3, arg4))
 
-#define addLogEventRaw1(key)                    \
-  if ((this)->getModelManager()->hasTimeline()) \
+#define addLogEventRaw1(key) if ((this)->getModelManager()->hasTimeline()) \
   addLogEvent_((this)->getModelManager(), (MessageTimeline("", key)))
 #define addLogEventRaw2(key1, key2) addLogEventRaw2_((this)->getModelManager(), key1, key2)
 #define addLogEventRaw3(key1, key2, key3) addLogEventRaw3_((this)->getModelManager(), key1, key2, key3)
@@ -372,10 +345,10 @@ inline modelica_boolean GreaterEq<double>(double a, double b)
 #define omc_assert_warning(message, ...) assert_((this)->getModelManager(), (Message("", std::string(message)), ##__VA_ARGS__))
 
 #define omc_assert_withEquationIndexes(info, equationIndexes, message, ...) assert_((this)->getModelManager(), (Message("", std::string(message)), \
-                                                                                                                ##__VA_ARGS__))
+                                       ##__VA_ARGS__))
 
 #define omc_assert_warning_withEquationIndexes(equationIndexes, message, ...) assert_((this)->getModelManager(), (Message("", std::string(message)), \
-                                                                                                                  ##__VA_ARGS__))
+                                               ##__VA_ARGS__))
 
 #define throwStreamPrint(data, message, ...) throw_((this)->getModelManager(), (Message("", std::string(message)), ##__VA_ARGS__))
 
@@ -383,11 +356,11 @@ inline modelica_boolean GreaterEq<double>(double a, double b)
 
 #ifdef __clang__
 #pragma clang diagnostic pop
-#endif // __clang__
+#endif  // __clang__
 
 #define stringEqual(x, y) compareString_(std::string(x), std::string(y))
 
-#define size_of_dimension_base_array(x, y) sizeOffArray_(x.dim_size, y - 1)
+#define size_of_dimension_base_array(x, y) sizeOffArray_ (x.dim_size, y - 1)
 
 #define MMC_STRINGDATA(x) x
 #define MMC_THROW_INTERNAL() assert(false)
@@ -398,13 +371,13 @@ inline modelica_boolean GreaterEq<double>(double a, double b)
 
 #define modelica_string_to_modelica_string(item, index1, index2) item
 
-#define callExternalAutomaton(command, time, inputs, inputs_name, nbInputs, nbMaxInputs, outputs, outputs_name, nbOutputs, nbMaxOutputs)                     \
-  callExternalAutomatonModel((this)->getModelManager()->name(), command, time, inputs, inputs_name, nbInputs, nbMaxInputs, outputs, outputs_name, nbOutputs, \
-                             nbMaxOutputs, this->getModelManager()->getWorkingDirectory());
+#define callExternalAutomaton(command, time, inputs, inputs_name, nbInputs, nbMaxInputs, outputs, outputs_name, nbOutputs, nbMaxOutputs) \
+    callExternalAutomatonModel((this)->getModelManager()->name(), command, time, inputs, inputs_name, nbInputs, nbMaxInputs, outputs, outputs_name, nbOutputs, \
+nbMaxOutputs, this->getModelManager()->getWorkingDirectory());
 
-#define callCosimulationInterface(time, inputs, inputs_name, nbInputs, nbMaxInputs, outputs, outputs_name, nbOutputs, nbMaxOutputs)                    \
-  callHelicsCosimulationInterfaceModel((this)->getModelManager(), (this)->getModelManager()->name(), time, inputs, inputs_name, nbInputs, nbMaxInputs, \
-                                       outputs, outputs_name, nbOutputs, nbMaxOutputs, this->getModelManager()->getWorkingDirectory());
+#define callCosimulationInterface(time, inputs, inputs_name, nbInputs, nbMaxInputs, outputs, outputs_name, nbOutputs, nbMaxOutputs) \
+    callHelicsCosimulationInterfaceModel((this)->getModelManager(), (this)->getModelManager()->name(), time, inputs, inputs_name, nbInputs, nbMaxInputs, \
+outputs, outputs_name, nbOutputs, nbMaxOutputs, this->getModelManager()->getWorkingDirectory());
 
 #define delayImpl(data, exprNumber, exprValue, time, delayTime, delayMax) \
   computeDelay((this)->getModelManager(), exprNumber, exprValue, time, delayTime, delayMax)

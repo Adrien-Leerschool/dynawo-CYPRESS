@@ -55,116 +55,99 @@ using boost::shared_ptr;
 
 using parameters::ParametersSet;
 
-namespace DYN
-{
+namespace DYN {
 
-  ModelManager::ModelManager() : SubModel(),
-                                 modelInit_(NULL),
-                                 modelDyn_(NULL),
-                                 dataInit_(new DYNDATA),
-                                 dataDyn_(new DYNDATA),
-                                 modelInitUsed_(false),
-                                 helicsTime_(-1),
-                                 fed_(NULL) {}
+ModelManager::ModelManager() :
+SubModel(),
+modelInit_(NULL),
+modelDyn_(NULL),
+dataInit_(new DYNDATA),
+dataDyn_(new DYNDATA),
+modelInitUsed_(false),
+helicsTime_(-1),
+fed_(NULL) { }
 
-  ModelManager::~ModelManager()
-  {
-    delete dataInit_;
-    delete dataDyn_;
+ModelManager::~ModelManager() {
+  delete dataInit_;
+  delete dataDyn_;
 
-    // Cleaning Helics stuff
-    if (name() == "CosimulationAutomaton")
-    {
-      fed_->requestTime(HELICS_BIG_NUMBER); // Clear out any pending messages
-      fed_->finalize();
-      helicscpp::cleanupHelicsLibrary();
-      Trace::debug() << "Federate finalized" << Trace::endline;
-    }
+  // Cleaning Helics stuff
+  if (name() == "CosimulationAutomaton") {
+    fed_->requestTime(HELICS_BIG_NUMBER);  // Clear out any pending messages
+    fed_->finalize();
+    helicscpp::cleanupHelicsLibrary();
+    Trace::debug() << "Federate finalized" << Trace::endline;
   }
+}
 
-  DYNDATA *
-  ModelManager::data() const
-  {
-    if (modelInitUsed_)
-      return dataInit_;
-    else
-      return dataDyn_;
-  }
+DYNDATA*
+ModelManager::data() const {
+  if (modelInitUsed_)
+    return dataInit_;
+  else
+    return dataDyn_;
+}
 
-  MODEL_DATA *
-  ModelManager::modelData() const
-  {
-    return data()->modelData;
-  }
+MODEL_DATA*
+ModelManager::modelData() const {
+  return data()->modelData;
+}
 
-  SIMULATION_INFO *
-  ModelManager::simulationInfo() const
-  {
-    return data()->simulationInfo;
-  }
+SIMULATION_INFO*
+ModelManager::simulationInfo() const {
+  return data()->simulationInfo;
+}
 
-  ModelModelica *
-  ModelManager::modelModelicaInit() const
-  {
-    if (hasInit())
-      return modelInit_;
-    else
-      throw DYNError(Error::MODELER, NoInitModel, modelType(), name());
-  }
+ModelModelica*
+ModelManager::modelModelicaInit() const {
+  if (hasInit())
+    return modelInit_;
+  else
+    throw DYNError(Error::MODELER, NoInitModel, modelType(), name());
+}
 
-  ModelModelica *
-  ModelManager::modelModelicaDynamic() const
-  {
-    return modelDyn_;
-  }
+ModelModelica*
+ModelManager::modelModelicaDynamic() const {
+  return modelDyn_;
+}
 
-  ModelModelica *
-  ModelManager::modelModelica() const
-  {
-    if (hasInit() && modelInitUsed_)
-      return modelModelicaInit();
-    else
-      return modelModelicaDynamic();
-  }
+ModelModelica*
+ModelManager::modelModelica() const {
+  if (hasInit() && modelInitUsed_)
+    return modelModelicaInit();
+  else
+    return modelModelicaDynamic();
+}
 
-  void
-  ModelManager::initializeStaticData()
-  {
-    if (hasInit())
-      modelInit_->initData(dataInit_);
+void
+ModelManager::initializeStaticData() {
+  if (hasInit())
+    modelInit_->initData(dataInit_);
 
-    modelDyn_->initData(dataDyn_);
-  }
+  modelDyn_->initData(dataDyn_);
+}
 
-  void
-  ModelManager::createParametersValueSet(const boost::unordered_map<string, ParameterModeler> &parameters, shared_ptr<ParametersSet> &parametersSet)
-  {
-    for (ParamIterator it = parameters.begin(), itEnd = parameters.end(); it != itEnd; ++it)
-    {
-      const ParameterModeler &parameter = it->second;
-      const string &parameterName = parameter.getName();
+void
+ModelManager::createParametersValueSet(const boost::unordered_map<string, ParameterModeler>& parameters, shared_ptr<ParametersSet>& parametersSet) {
+  for (ParamIterator it = parameters.begin(), itEnd = parameters.end(); it != itEnd; ++it) {
+    const ParameterModeler& parameter = it->second;
+    const string& parameterName = parameter.getName();
 
-      if (parameter.hasValue())
-      {
-        switch (parameter.getValueType())
-        {
-        case VAR_TYPE_DOUBLE:
-        {
+    if (parameter.hasValue()) {
+      switch (parameter.getValueType()) {
+        case VAR_TYPE_DOUBLE: {
           parametersSet->createParameter(parameterName, parameter.getValue<double>());
           break;
         }
-        case VAR_TYPE_INT:
-        {
+        case VAR_TYPE_INT: {
           parametersSet->createParameter(parameterName, parameter.getValue<int>());
           break;
         }
-        case VAR_TYPE_BOOL:
-        {
+        case VAR_TYPE_BOOL: {
           parametersSet->createParameter(parameterName, parameter.getValue<bool>());
           break;
         }
-        case VAR_TYPE_STRING:
-        {
+        case VAR_TYPE_STRING: {
           parametersSet->createParameter(parameterName, parameter.getValue<string>());
           break;
         }
@@ -172,547 +155,479 @@ namespace DYN
         {
           throw DYNError(Error::MODELER, ParameterBadType, name());
         }
-        }
       }
     }
   }
+}
 
-  void
-  ModelManager::initSubBuffers()
-  {
-    associateBuffers();
-  }
+void
+ModelManager::initSubBuffers() {
+  associateBuffers();
+}
 
-  void
-  ModelManager::init(const double t0)
-  {
-    // initialization of the dynamic model
-    setSubModelParameters(); // required as before that memory was not allocated
+void
+ModelManager::init(const double t0) {
+  // initialization of the dynamic model
+  setSubModelParameters();  // required as before that memory was not allocated
 
-    modelModelica()->callCustomParametersConstructors();
+  modelModelica()->callCustomParametersConstructors();
 
-    getSize();
+  getSize();
 
-    setManagerTime(t0);
-  }
+  setManagerTime(t0);
+}
 
-  void ModelManager::setSubModelParameters()
-  {
-    if (modelModelica()->isDataStructInitialized())
-    {
-      shared_ptr<ParametersSet> mergedParametersSet(boost::shared_ptr<ParametersSet>(new ParametersSet("merged_" + name())));
-
-      const boost::unordered_map<string, ParameterModeler> &parameters = getParametersDynamic();
-
-      createParametersValueSet(parameters, mergedParametersSet);
-
-      modelModelica()->setParameters(mergedParametersSet);
-
-      // parameters (number and order = those of the .mo file)
-      // --------------------------------------------------
-      // apparently problem of scheduling of inits in WTO
-      for (int i = 0; i < 2; ++i)
-      {
-        modelModelica()->initRpar();
-      }
-    }
-  }
-
-  void
-  ModelManager::associateBuffers()
-  {
-    if (modelInitUsed_)
-    {
-      yLocalInit_.resize(dataInit_->nbVars);
-      ypLocalInit_.resize(dataInit_->nbVars);
-      zLocalInit_.resize(dataInit_->nbZ + dataInit_->modelData->nVariablesInteger);
-      fLocalInit_.resize(dataInit_->nbF);
-
-      dataInit_->localData[0]->realVars = static_cast<modelica_real *>(0);
-      dataInit_->localData[0]->derivativesVars = static_cast<modelica_real *>(0);
-      dataInit_->localData[0]->discreteVars = static_cast<modelica_real *>(0);
-
-      if (!yLocalInit_.empty())
-        dataInit_->localData[0]->realVars = &(yLocalInit_[0]);
-      if (!ypLocalInit_.empty())
-        dataInit_->localData[0]->derivativesVars = &(ypLocalInit_[0]);
-      if (!zLocalInit_.empty())
-        dataInit_->localData[0]->discreteVars = &(zLocalInit_[0]);
-
-      if (dataInit_->modelData->nVariablesInteger > 0)
-      {
-        int offset = dataInit_->nbZ;
-        dataInit_->localData[0]->integerDoubleVars = &(zLocalInit_[offset]);
-      }
-    }
-    else
-    {
-      dataDyn_->localData[0]->realVars = &(yLocal_[0]);
-
-      dataDyn_->localData[0]->derivativesVars = &(ypLocal_[0]);
-      dataDyn_->localData[0]->discreteVars = &(zLocal_[0]);
-
-      if (dataDyn_->modelData->nVariablesInteger > 0)
-      {
-        int offset = dataDyn_->nbZ;
-        dataDyn_->localData[0]->integerDoubleVars = &(zLocal_[offset]);
-      }
-    }
-  }
-
-  void
-  ModelManager::getSize()
-  {
-    sizeF_ = data()->nbF;
-    sizeZ_ = static_cast<unsigned int>(data()->nbZ + modelData()->nVariablesInteger); ///< Z in dynawo = Z in Modelica + I in Modelica
-    sizeG_ = static_cast<unsigned int>(modelData()->nZeroCrossings + data()->nbDelays);
-    sizeMode_ = data()->nbModes;
-    sizeY_ = data()->nbVars;
-    sizeCalculatedVar_ = data()->nbCalculatedVars;
-    if (calculatedVars_.empty() && !modelInitUsed_)
-      calculatedVars_.assign(sizeCalculatedVar_, 0);
-  }
-
-  void
-  ModelManager::evalF(double t, propertyF_t type)
-  {
-#if defined(_DEBUG_) || defined(PRINT_TIMERS)
-    Timer timer("ModelManager::evalF");
-#endif
-    setManagerTime(t);
-
-    modelModelica()->setFomc(fLocal_, type);
-  }
-
-  bool
-  ModelManager::hasDataCheckCoherence() const
-  {
-    return modelModelica()->hasCheckDataCoherence();
-  }
-
-  void
-  ModelManager::checkDataCoherence(const double t)
-  {
-#if defined(_DEBUG_) || defined(PRINT_TIMERS)
-    Timer timer("ModelManager::checkDataCoherence");
-#endif
-
-    setManagerTime(t);
-
-    modelModelica()->checkDataCoherence();
-  }
-
-  void
-  ModelManager::checkParametersCoherence() const
-  {
-    modelModelica()->checkParametersCoherence();
-  }
-
-  void
-  ModelManager::setFequations()
-  {
-    modelModelicaDynamic()->setFequations(fEquationIndex_);
-  }
-
-  void
-  ModelManager::setGequations()
-  {
-    modelModelicaDynamic()->setGequations(gEquationIndex_);
-  }
-
-  void
-  ModelManager::setFequationsInit()
-  {
-    if (hasInit())
-      modelModelicaInit()->setFequations(fEquationInitIndex_);
-  }
-
-  void
-  ModelManager::setGequationsInit()
-  {
-    if (hasInit())
-      modelModelicaInit()->setGequations(gEquationInitIndex_);
-  }
-
-#ifdef _ADEPT_
-
-  void
-  ModelManager::evalF(const double t, const vector<adept::adouble> &y,
-                      const vector<adept::adouble> &yp, vector<adept::adouble> &f)
-  {
-#if defined(_DEBUG_) || defined(PRINT_TIMERS)
-    Timer timer("ModelManager::evalF adept");
-#endif
-    setManagerTime(t);
-
-    modelModelica()->evalFAdept(y, yp, f);
-#ifdef _DEBUG_
-    for (unsigned int i = 0; i < sizeF(); i++)
-    {
-      double term = f[i].value();
-      if (isnan(term) || isinf(term))
-      {
-        throw DYNError(Error::MODELER, ResidualWithNanInf, name(), modelType(), staticId(), i, getFequationByLocalIndex(i)); // i is local index
-      }
-    }
-#endif
-  }
-
-  void
-  ModelManager::evalJtAdept(const double t, double *y, double *yp, const double cj, SparseMatrix &Jt, const int rowOffset, bool complete)
-  {
-    if (sizeY() == 0)
-      return;
-
-    try
-    {
-      const int nbInput = sizeY() + sizeY(); // Y and Y '
-      const int nbOutput = sizeY();
-      const int coeff = complete ? 1 : 0; // complete => jacobian @F/@y + cj.@F/@Y' else @F/@Y'
-      vector<double> jac(nbInput * nbOutput);
-
-      adept::Stack stack;
-      stack.activate();
-      vector<adept::adouble> x(sizeY());
-      adept::set_values(&x[0], sizeY(), y);
-
-      vector<adept::adouble> xp(sizeY());
-      adept::set_values(&xp[0], sizeY(), yp);
-
-      stack.new_recording();
-      vector<adept::adouble> output(nbOutput);
-      evalF(t, x, xp, output);
-      stack.independent(&x[0], static_cast<adept::uIndex>(x.size()));
-      stack.independent(&xp[0], static_cast<adept::uIndex>(xp.size()));
-      stack.dependent(&output[0], nbOutput);
-#if defined(_DEBUG_) || defined(PRINT_TIMERS)
-      Timer *timer1 = new Timer("zzz reading");
-#endif
-      stack.jacobian(&jac[0]);
-      stack.pause_recording();
-#if defined(_DEBUG_) || defined(PRINT_TIMERS)
-      delete timer1;
-#endif
-
-      int offsetJPrim = sizeY() * sizeY();
-#if defined(_DEBUG_) || defined(PRINT_TIMERS)
-      Timer *timer3 = new Timer("zzz filling");
-#endif
-
-      for (unsigned int i = 0; i < sizeF(); ++i)
-      {
-        Jt.changeCol();
-        for (unsigned int j = 0; j < sizeY(); ++j)
-        {
-          int indice = i + j * sizeY();
-          double term = coeff * jac[indice] + cj * jac[indice + offsetJPrim];
-#ifdef _DEBUG_
-          if (isnan(term) || isinf(term))
-          {
-            throw DYNError(Error::MODELER, JacobianWithNanInf, name(), modelType(), staticId(), i, getFequationByLocalIndex(i), j); // i is local index
-          }
-#endif
-          Jt.addTerm(j + rowOffset, term);
-        }
-      }
-
-#if defined(_DEBUG_) || defined(PRINT_TIMERS)
-      delete timer3;
-#endif
-    }
-    catch (adept::stack_already_active &e)
-    {
-      std::cerr << "Error :" << e.what() << std::endl;
-      throw DYNError(DYN::Error::MODELER, AdeptFailure);
-    }
-    catch (adept::autodiff_exception &e)
-    {
-      std::cerr << "Error :" << e.what() << std::endl;
-      throw DYNError(DYN::Error::MODELER, AdeptFailure);
-    }
-  }
-#endif
-
-  void
-  ModelManager::evalG(const double t)
-  {
-    setManagerTime(t);
-
-    modelModelica()->setGomc(gLocal_);
-    delayManager_.setGomc(gLocal_, modelData()->nZeroCrossings);
-  }
-
-  void
-  ModelManager::evalJt(const double t, const double cj, SparseMatrix &jt, const int rowOffset)
-  {
-#if defined(_DEBUG_) || defined(PRINT_TIMERS)
-    Timer timer("ModelManager::evalJ");
-#endif
-
-#if _ADEPT_
-    evalJtAdept(t, yLocal_, ypLocal_, cj, jt, rowOffset, true);
-#else
-    // Assert when Adept wasn't used
-    assert(0 && "evalJt : Adept not used");
-#endif
-  }
-
-  void
-  ModelManager::evalJtPrim(const double t, const double cj, SparseMatrix &jt, const int rowOffset)
-  {
-#if defined(_DEBUG_) || defined(PRINT_TIMERS)
-    Timer timer("ModelManager::evalJPrim");
-#endif
-
-#ifdef _ADEPT_
-    evalJtAdept(t, yLocal_, ypLocal_, cj, jt, rowOffset, false);
-#else
-    // Assert when Adept wasn't used
-    assert(0 && "evalJt : Adept not used");
-#endif
-  }
-
-  void
-  ModelManager::evalZ(const double t)
-  {
-    if (sizeZ() > 0)
-    {
-      setManagerTime(t);
-
-      modelModelica()->setZomc();
-    }
-  }
-
-  modeChangeType_t
-  ModelManager::evalMode(const double t)
-  {
-    modeChangeType_t delay_mode = delayManager_.isTriggered() ? ALGEBRAIC_MODE : NO_MODE;
-    if (delayManager_.isTriggered())
-    {
-      // reset trigger if delay mode is detected to prevent detection next time for the same reasons
-      delayManager_.notifyEndTrigger();
-    }
-
-    return std::max(delay_mode, modelModelica()->evalMode(t));
-  }
-
-  void
-  ModelManager::getY0()
-  {
-    simulationInfo()->initial = true;
-
-    setManagerTime(getCurrentTime());
-
-    if (!withLoadedVariables_)
-    {
-      modelModelica()->setY0omc();
-    }
-
-    simulationInfo()->initial = false;
-  }
-
-  void
-  ModelManager::evalStaticYType()
-  {
-    modelModelica()->evalStaticYType_omc(yType_);
-  }
-
-  void
-  ModelManager::evalStaticFType()
-  {
-    modelModelica()->evalStaticFType_omc(fType_);
-  }
-
-  void
-  ModelManager::evalDynamicYType()
-  {
-    modelModelica()->evalDynamicYType_omc(yType_);
-  }
-
-  void
-  ModelManager::evalDynamicFType()
-  {
-    modelModelica()->evalDynamicFType_omc(fType_);
-  }
-
-  void
-  ModelManager::collectSilentZ(BitMask *silentZTable)
-  {
-    modelModelica()->collectSilentZ(silentZTable);
-  }
-
-  void
-  ModelManager::setSharedParametersDefaultValues(const bool isInit, const parameterOrigin_t &origin)
-  {
-    ModelModelica *model = isInit ? modelModelicaInit() : modelModelicaDynamic();
-    const shared_ptr<parameters::ParametersSet> sharedParametersInitialValues = model->setSharedParametersDefaultValues();
-    const boost::unordered_map<string, ParameterModeler> &parameters = isInit ? getParametersInit() : getParametersDynamic();
-
-    for (ParamIterator it = parameters.begin(), itEnd = parameters.end(); it != itEnd; ++it)
-    {
-      const ParameterModeler &currentParameter = it->second;
-      const string &paramName = currentParameter.getName();
-
-      if (currentParameter.isUnitary() && sharedParametersInitialValues->hasParameter(paramName))
-      {
-        switch (currentParameter.getValueType())
-        {
-        case VAR_TYPE_BOOL:
-        {
-          const bool value = sharedParametersInitialValues->getParameter(paramName)->getBool();
-          setParameterValue(paramName, origin, value, isInit);
-          break;
-        }
-        case VAR_TYPE_INT:
-        {
-          const int value = sharedParametersInitialValues->getParameter(paramName)->getInt();
-          setParameterValue(paramName, origin, value, isInit);
-          break;
-        }
-        case VAR_TYPE_DOUBLE:
-        {
-          const double &value = sharedParametersInitialValues->getParameter(paramName)->getDouble();
-          setParameterValue(paramName, origin, value, isInit);
-          break;
-        }
-        case VAR_TYPE_STRING:
-        {
-          const string &value = sharedParametersInitialValues->getParameter(paramName)->getString();
-          setParameterValue(paramName, origin, value, isInit);
-          break;
-        }
-        }
-      }
-    }
-  }
-
-  void
-  ModelManager::initParams()
-  {
-    if (!hasInit())
-    {
-      modelInitUsed_ = false;
-      return; // no init model => nothing to do
-    }
-    else
-    {
-      modelInitUsed_ = true;
-    }
-
+void ModelManager::setSubModelParameters() {
+  if (modelModelica()->isDataStructInitialized()) {
     shared_ptr<ParametersSet> mergedParametersSet(boost::shared_ptr<ParametersSet>(new ParametersSet("merged_" + name())));
-    const boost::unordered_map<string, ParameterModeler> &parametersInit = getParametersInit();
-    createParametersValueSet(parametersInit, mergedParametersSet);
+
+    const boost::unordered_map<string, ParameterModeler>& parameters = getParametersDynamic();
+
+    createParametersValueSet(parameters, mergedParametersSet);
 
     modelModelica()->setParameters(mergedParametersSet);
 
-    // apparently problem of scheduling of inits in OMC
-    for (int i = 0; i < 2; ++i)
-    {
+    // parameters (number and order = those of the .mo file)
+    // --------------------------------------------------
+    // apparently problem of scheduling of inits in WTO
+    for (int i = 0; i < 2; ++i) {
       modelModelica()->initRpar();
     }
-    modelModelica()->callCustomParametersConstructors();
+  }
+}
 
-    // init local sizes for init values
-    getSize();
+void
+ModelManager::associateBuffers() {
+  if (modelInitUsed_) {
+    yLocalInit_.resize(dataInit_->nbVars);
+    ypLocalInit_.resize(dataInit_->nbVars);
+    zLocalInit_.resize(dataInit_->nbZ + dataInit_->modelData->nVariablesInteger);
+    fLocalInit_.resize(dataInit_->nbF);
 
-    // block init for calculation
-    setManagerTime(getCurrentTime());
+    dataInit_->localData[0]->realVars = static_cast<modelica_real*>(0);
+    dataInit_->localData[0]->derivativesVars = static_cast<modelica_real*>(0);
+    dataInit_->localData[0]->discreteVars = static_cast<modelica_real*>(0);
 
-    associateBuffers();
-    // call the parameter calculation method
-    solveParameters();
-    try
-    {
-      checkDataCoherence(getCurrentTime());
-      checkParametersCoherence();
+    if (!yLocalInit_.empty())
+      dataInit_->localData[0]->realVars = &(yLocalInit_[0]);
+    if (!ypLocalInit_.empty())
+      dataInit_->localData[0]->derivativesVars = &(ypLocalInit_[0]);
+    if (!zLocalInit_.empty())
+      dataInit_->localData[0]->discreteVars = &(zLocalInit_[0]);
+
+    if (dataInit_->modelData->nVariablesInteger > 0) {
+      int offset = dataInit_->nbZ;
+      dataInit_->localData[0]->integerDoubleVars = &(zLocalInit_[offset]);
     }
-    catch (const MessageError &Msg)
-    {
-      Trace::error() << Msg.what() << Trace::endline;
-      throw DYNError(Error::MODELER, ErrorInit, modelType(), name());
+  } else {
+    dataDyn_->localData[0]->realVars = &(yLocal_[0]);
+
+    dataDyn_->localData[0]->derivativesVars = &(ypLocal_[0]);
+    dataDyn_->localData[0]->discreteVars = &(zLocal_[0]);
+
+    if (dataDyn_->modelData->nVariablesInteger > 0) {
+      int offset = dataDyn_->nbZ;
+      dataDyn_->localData[0]->integerDoubleVars = &(zLocal_[offset]);
     }
-    catch (const Terminate &Msg)
-    {
-      Trace::error() << Msg.what() << Trace::endline;
-      throw DYNError(Error::MODELER, ErrorInit, modelType(), name());
+  }
+}
+
+void
+ModelManager::getSize() {
+  sizeF_ = data()->nbF;
+  sizeZ_ = static_cast<unsigned int>(data()->nbZ + modelData()->nVariablesInteger);  ///< Z in dynawo = Z in Modelica + I in Modelica
+  sizeG_ = static_cast<unsigned int>(modelData()->nZeroCrossings + data()->nbDelays);
+  sizeMode_ = data()->nbModes;
+  sizeY_ = data()->nbVars;
+  sizeCalculatedVar_ = data()->nbCalculatedVars;
+  if (calculatedVars_.empty() && !modelInitUsed_)
+    calculatedVars_.assign(sizeCalculatedVar_, 0);
+}
+
+void
+ModelManager::evalF(double t, propertyF_t type) {
+#if defined(_DEBUG_) || defined(PRINT_TIMERS)
+  Timer timer("ModelManager::evalF");
+#endif
+  setManagerTime(t);
+
+  modelModelica()->setFomc(fLocal_, type);
+}
+
+bool
+ModelManager::hasDataCheckCoherence() const {
+  return modelModelica()->hasCheckDataCoherence();
+}
+
+void
+ModelManager::checkDataCoherence(const double t) {
+#if defined(_DEBUG_) || defined(PRINT_TIMERS)
+  Timer timer("ModelManager::checkDataCoherence");
+#endif
+
+  setManagerTime(t);
+
+  modelModelica()->checkDataCoherence();
+}
+
+void
+ModelManager::checkParametersCoherence() const {
+  modelModelica()->checkParametersCoherence();
+}
+
+void
+ModelManager::setFequations() {
+  modelModelicaDynamic()->setFequations(fEquationIndex_);
+}
+
+void
+ModelManager::setGequations() {
+  modelModelicaDynamic()->setGequations(gEquationIndex_);
+}
+
+void
+ModelManager::setFequationsInit() {
+  if (hasInit())
+    modelModelicaInit()->setFequations(fEquationInitIndex_);
+}
+
+void
+ModelManager::setGequationsInit() {
+  if (hasInit())
+    modelModelicaInit()->setGequations(gEquationInitIndex_);
+}
+
+
+#ifdef _ADEPT_
+
+void
+ModelManager::evalF(const double t, const vector<adept::adouble>& y,
+        const vector<adept::adouble>& yp, vector<adept::adouble>& f) {
+#if defined(_DEBUG_) || defined(PRINT_TIMERS)
+  Timer timer("ModelManager::evalF adept");
+#endif
+  setManagerTime(t);
+
+  modelModelica()->evalFAdept(y, yp, f);
+#ifdef _DEBUG_
+  for (unsigned int i = 0; i < sizeF(); i++) {
+    double term = f[i].value();
+    if (isnan(term) || isinf(term)) {
+       throw DYNError(Error::MODELER, ResidualWithNanInf, name(), modelType(), staticId(), i, getFequationByLocalIndex(i));  // i is local index
     }
-    catch (const Error &Msg)
-    {
-      Trace::error() << Msg.what() << Trace::endline;
-      throw DYNError(Error::MODELER, ErrorInit, modelType(), name());
+  }
+#endif
+}
+
+void
+ModelManager::evalJtAdept(const double t, double* y, double* yp, const double cj, SparseMatrix& Jt, const int rowOffset, bool complete) {
+  if (sizeY() == 0)
+    return;
+
+  try {
+    const int nbInput = sizeY() + sizeY();  // Y and Y '
+    const int nbOutput = sizeY();
+    const int coeff = complete ? 1: 0;  // complete => jacobian @F/@y + cj.@F/@Y' else @F/@Y'
+    vector<double> jac(nbInput * nbOutput);
+
+    adept::Stack stack;
+    stack.activate();
+    vector<adept::adouble> x(sizeY());
+    adept::set_values(&x[0], sizeY(), y);
+
+    vector<adept::adouble> xp(sizeY());
+    adept::set_values(&xp[0], sizeY(), yp);
+
+    stack.new_recording();
+    vector<adept::adouble> output(nbOutput);
+    evalF(t, x, xp, output);
+    stack.independent(&x[0], static_cast<adept::uIndex>(x.size()));
+    stack.independent(&xp[0], static_cast<adept::uIndex>(xp.size()));
+    stack.dependent(&output[0], nbOutput);
+#if defined(_DEBUG_) || defined(PRINT_TIMERS)
+    Timer * timer1 = new Timer("zzz reading");
+#endif
+    stack.jacobian(&jac[0]);
+    stack.pause_recording();
+#if defined(_DEBUG_) || defined(PRINT_TIMERS)
+    delete timer1;
+#endif
+
+    int offsetJPrim = sizeY() * sizeY();
+#if defined(_DEBUG_) || defined(PRINT_TIMERS)
+    Timer * timer3 = new Timer("zzz filling");
+#endif
+
+    for (unsigned int i = 0; i < sizeF(); ++i) {
+      Jt.changeCol();
+      for (unsigned int j = 0; j < sizeY(); ++j) {
+        int indice = i + j * sizeY();
+        double term = coeff * jac[indice] + cj * jac[indice + offsetJPrim];
+#ifdef _DEBUG_
+        if (isnan(term) || isinf(term)) {
+          throw DYNError(Error::MODELER, JacobianWithNanInf, name(), modelType(), staticId(), i, getFequationByLocalIndex(i), j);   // i is local index
+        }
+#endif
+        Jt.addTerm(j + rowOffset, term);
+      }
     }
 
-    modelInitUsed_ = false;
+#if defined(_DEBUG_) || defined(PRINT_TIMERS)
+    delete timer3;
+#endif
+  } catch (adept::stack_already_active & e) {
+    std::cerr << "Error :" << e.what() << std::endl;
+    throw DYNError(DYN::Error::MODELER, AdeptFailure);
+  } catch (adept::autodiff_exception & e) {
+    std::cerr << "Error :" << e.what() << std::endl;
+    throw DYNError(DYN::Error::MODELER, AdeptFailure);
+  }
+}
+#endif
+
+void
+ModelManager::evalG(const double t) {
+  setManagerTime(t);
+
+  modelModelica()->setGomc(gLocal_);
+  delayManager_.setGomc(gLocal_, modelData()->nZeroCrossings);
+}
+
+void
+ModelManager::evalJt(const double t, const double cj, SparseMatrix& jt, const int rowOffset) {
+#if defined(_DEBUG_) || defined(PRINT_TIMERS)
+  Timer timer("ModelManager::evalJ");
+#endif
+
+#if _ADEPT_
+  evalJtAdept(t, yLocal_, ypLocal_, cj, jt, rowOffset, true);
+#else
+  // Assert when Adept wasn't used
+  assert(0 && "evalJt : Adept not used");
+#endif
+}
+
+void
+ModelManager::evalJtPrim(const double t, const double cj, SparseMatrix& jt, const int rowOffset) {
+#if defined(_DEBUG_) || defined(PRINT_TIMERS)
+  Timer timer("ModelManager::evalJPrim");
+#endif
+
+#ifdef _ADEPT_
+  evalJtAdept(t, yLocal_, ypLocal_, cj, jt, rowOffset, false);
+#else
+  // Assert when Adept wasn't used
+  assert(0 && "evalJt : Adept not used");
+#endif
+}
+
+void
+ModelManager::evalZ(const double t) {
+  if (sizeZ() > 0) {
+    setManagerTime(t);
+
+    modelModelica()->setZomc();
+  }
+}
+
+modeChangeType_t
+ModelManager::evalMode(const double t) {
+  modeChangeType_t delay_mode = delayManager_.isTriggered() ? ALGEBRAIC_MODE : NO_MODE;
+  if (delayManager_.isTriggered()) {
+    // reset trigger if delay mode is detected to prevent detection next time for the same reasons
+    delayManager_.notifyEndTrigger();
   }
 
-  void
-  ModelManager::dumpParameters(map<string, string> &mapParameters)
-  {
-    stringstream parameters;
-    boost::archive::binary_oarchive os(parameters);
+  return std::max(delay_mode, modelModelica()->evalMode(t));
+}
 
-    string cSum = "";
-    string cSumInit = "";
-    if (hasInit())
-    {
-      modelModelicaInit()->checkSum(cSumInit);
-    }
+void
+ModelManager::getY0() {
+  simulationInfo()->initial = true;
 
-    modelModelicaDynamic()->checkSum(cSum);
+  setManagerTime(getCurrentTime());
 
-    unsigned int nb = static_cast<unsigned int>(modelData()->nParametersReal);
-    vector<double> params(nb, 0.);
-    std::copy(simulationInfo()->realParameter, simulationInfo()->realParameter + nb, params.begin());
-
-    nb = static_cast<unsigned int>(modelData()->nParametersBoolean);
-    vector<bool> paramsBool(nb, false);
-    std::copy(simulationInfo()->booleanParameter, simulationInfo()->booleanParameter + nb, paramsBool.begin());
-
-    nb = static_cast<unsigned int>(modelData()->nParametersInteger);
-    vector<int> paramsInt(nb, 0);
-    std::copy(simulationInfo()->integerParameter, simulationInfo()->integerParameter + nb, paramsInt.begin());
-
-    // same method can't be applied to string due to the implicit cast from
-    // modelica_string to string
-    vector<string> paramsString;
-    for (unsigned int i = 0; i < modelData()->nParametersString; ++i)
-    {
-      paramsString.push_back(simulationInfo()->stringParameter[i]);
-    }
-    std::vector<std::string> delays = delayManager_.dumpDelays();
-    for (std::vector<std::string>::const_iterator it = delays.begin(); it != delays.end(); ++it)
-    {
-      paramsString.push_back(*it);
-    }
-
-    os << cSum;
-    os << cSumInit;
-    os << params;
-    os << paramsBool;
-    os << paramsInt;
-    os << paramsString;
-
-    mapParameters[parametersFileName()] = parameters.str();
+  if (!withLoadedVariables_) {
+    modelModelica()->setY0omc();
   }
 
-  void ModelManager::writeParametersFinalValues()
-  {
-    const boost::unordered_map<string, ParameterModeler> &parameters = getParametersDynamic();
-    // in the OpenModelica-generated code
-    // parameters are ordered as real first, then boolean, then integer
-    const unsigned int nbParamsReal = static_cast<unsigned int>(modelData()->nParametersReal);
-    const unsigned int nbParamsBool = static_cast<unsigned int>(modelData()->nParametersBoolean);
-    const unsigned int nbParamsInt = static_cast<unsigned int>(modelData()->nParametersInteger);
-    for (ParamIterator it = parameters.begin(), itEnd = parameters.end(); it != itEnd; ++it)
-    {
-      const ParameterModeler &currentParameter = it->second;
-      unsigned int i = currentParameter.getIndex();
-      const string &currentParameterName = currentParameter.getName();
-      if (i < nbParamsReal)
+  simulationInfo()->initial = false;
+}
+
+void
+ModelManager::evalStaticYType() {
+  modelModelica()->evalStaticYType_omc(yType_);
+}
+
+void
+ModelManager::evalStaticFType() {
+  modelModelica()->evalStaticFType_omc(fType_);
+}
+
+void
+ModelManager::evalDynamicYType() {
+  modelModelica()->evalDynamicYType_omc(yType_);
+}
+
+void
+ModelManager::evalDynamicFType() {
+  modelModelica()->evalDynamicFType_omc(fType_);
+}
+
+
+void
+ModelManager::collectSilentZ(BitMask* silentZTable) {
+  modelModelica()->collectSilentZ(silentZTable);
+}
+
+void
+ModelManager::setSharedParametersDefaultValues(const bool isInit, const parameterOrigin_t& origin) {
+  ModelModelica * model = isInit ? modelModelicaInit() : modelModelicaDynamic();
+  const shared_ptr<parameters::ParametersSet> sharedParametersInitialValues = model->setSharedParametersDefaultValues();
+  const boost::unordered_map<string, ParameterModeler>& parameters = isInit ? getParametersInit() : getParametersDynamic();
+
+  for (ParamIterator it = parameters.begin(), itEnd = parameters.end(); it != itEnd; ++it) {
+    const ParameterModeler& currentParameter = it->second;
+    const string& paramName = currentParameter.getName();
+
+    if (currentParameter.isUnitary() && sharedParametersInitialValues->hasParameter(paramName)) {
+      switch (currentParameter.getValueType()) {
+      case VAR_TYPE_BOOL:
       {
-        const unsigned int localRealIndex = i;
-        switch (currentParameter.getValueType())
-        {
+        const bool value = sharedParametersInitialValues->getParameter(paramName)->getBool();
+        setParameterValue(paramName, origin, value, isInit);
+        break;
+      }
+      case VAR_TYPE_INT:
+      {
+        const int value = sharedParametersInitialValues->getParameter(paramName)->getInt();
+        setParameterValue(paramName, origin, value, isInit);
+        break;
+      }
+      case VAR_TYPE_DOUBLE:
+      {
+        const double& value = sharedParametersInitialValues->getParameter(paramName)->getDouble();
+        setParameterValue(paramName, origin, value, isInit);
+        break;
+      }
+      case VAR_TYPE_STRING:
+      {
+        const string& value = sharedParametersInitialValues->getParameter(paramName)->getString();
+        setParameterValue(paramName, origin, value, isInit);
+        break;
+      }
+      }
+    }
+  }
+}
+
+void
+ModelManager::initParams() {
+  if (!hasInit()) {
+    modelInitUsed_ = false;
+    return;  // no init model => nothing to do
+  } else {
+    modelInitUsed_ = true;
+  }
+
+  shared_ptr<ParametersSet> mergedParametersSet(boost::shared_ptr<ParametersSet>(new ParametersSet("merged_" + name())));
+  const boost::unordered_map<string, ParameterModeler>& parametersInit = getParametersInit();
+  createParametersValueSet(parametersInit, mergedParametersSet);
+
+  modelModelica()->setParameters(mergedParametersSet);
+
+  // apparently problem of scheduling of inits in OMC
+  for (int i = 0; i < 2; ++i) {
+    modelModelica()->initRpar();
+  }
+  modelModelica()->callCustomParametersConstructors();
+
+  // init local sizes for init values
+  getSize();
+
+  // block init for calculation
+  setManagerTime(getCurrentTime());
+
+  associateBuffers();
+  // call the parameter calculation method
+  solveParameters();
+  try {
+    checkDataCoherence(getCurrentTime());
+    checkParametersCoherence();
+  } catch (const MessageError& Msg) {
+    Trace::error() << Msg.what() << Trace::endline;
+    throw DYNError(Error::MODELER, ErrorInit, modelType(), name());
+  } catch (const Terminate& Msg) {
+    Trace::error() << Msg.what() << Trace::endline;
+    throw DYNError(Error::MODELER, ErrorInit, modelType(), name());
+  } catch (const Error& Msg) {
+    Trace::error() << Msg.what() << Trace::endline;
+    throw DYNError(Error::MODELER, ErrorInit, modelType(), name());
+  }
+
+  modelInitUsed_ = false;
+}
+
+void
+ModelManager::dumpParameters(map< string, string >& mapParameters) {
+  stringstream parameters;
+  boost::archive::binary_oarchive os(parameters);
+
+  string cSum = "";
+  string cSumInit = "";
+  if (hasInit()) {
+    modelModelicaInit()->checkSum(cSumInit);
+  }
+
+  modelModelicaDynamic()->checkSum(cSum);
+
+  unsigned int nb = static_cast<unsigned int>(modelData()->nParametersReal);
+  vector<double> params(nb, 0.);
+  std::copy(simulationInfo()->realParameter, simulationInfo()->realParameter + nb, params.begin());
+
+  nb = static_cast<unsigned int>(modelData()->nParametersBoolean);
+  vector<bool> paramsBool(nb, false);
+  std::copy(simulationInfo()->booleanParameter, simulationInfo()->booleanParameter + nb, paramsBool.begin());
+
+  nb = static_cast<unsigned int>(modelData()->nParametersInteger);
+  vector<int> paramsInt(nb, 0);
+  std::copy(simulationInfo()->integerParameter, simulationInfo()->integerParameter + nb, paramsInt.begin());
+
+  // same method can't be applied to string due to the implicit cast from
+  // modelica_string to string
+  vector<string> paramsString;
+  for (unsigned int i = 0; i < modelData()->nParametersString; ++i) {
+    paramsString.push_back(simulationInfo()->stringParameter[i]);
+  }
+  std::vector<std::string> delays = delayManager_.dumpDelays();
+  for (std::vector<std::string>::const_iterator it = delays.begin(); it != delays.end(); ++it) {
+    paramsString.push_back(*it);
+  }
+
+  os << cSum;
+  os << cSumInit;
+  os << params;
+  os << paramsBool;
+  os << paramsInt;
+  os << paramsString;
+
+  mapParameters[ parametersFileName() ] = parameters.str();
+}
+
+void ModelManager::writeParametersFinalValues() {
+  const boost::unordered_map<string, ParameterModeler>& parameters = getParametersDynamic();
+  // in the OpenModelica-generated code
+  // parameters are ordered as real first, then boolean, then integer
+  const unsigned int nbParamsReal = static_cast<unsigned int>(modelData()->nParametersReal);
+  const unsigned int nbParamsBool = static_cast<unsigned int>(modelData()->nParametersBoolean);
+  const unsigned int nbParamsInt = static_cast<unsigned int>(modelData()->nParametersInteger);
+  for (ParamIterator it = parameters.begin(), itEnd = parameters.end(); it != itEnd; ++it) {
+    const ParameterModeler& currentParameter = it->second;
+    unsigned int i = currentParameter.getIndex();
+    const string& currentParameterName = currentParameter.getName();
+    if (i < nbParamsReal) {
+      const unsigned int localRealIndex = i;
+      switch (currentParameter.getValueType()) {
         case VAR_TYPE_DOUBLE:
         {
           setFinalParameter(currentParameterName, simulationInfo()->realParameter[localRealIndex]);
@@ -720,7 +635,7 @@ namespace DYN
         }
         case VAR_TYPE_INT:
         {
-          setFinalParameter(currentParameterName, static_cast<int>(simulationInfo()->realParameter[localRealIndex]));
+          setFinalParameter(currentParameterName, static_cast<int> (simulationInfo()->realParameter[localRealIndex]));
           break;
         }
         case VAR_TYPE_BOOL:
@@ -732,236 +647,219 @@ namespace DYN
         {
           throw DYNError(Error::MODELER, ParameterInvalidTypeRequested, currentParameter.getName(), typeVarC2Str(currentParameter.getValueType()), "DOUBLE");
         }
-        }
       }
-      else if (i < nbParamsReal + nbParamsBool)
-      {
-        const unsigned int localBooleanIndex = i - nbParamsReal;
-        assert(localBooleanIndex < nbParamsBool);
-        if (currentParameter.getValueType() != VAR_TYPE_BOOL)
-          throw DYNError(Error::MODELER, ParameterInvalidTypeRequested, currentParameter.getName(), typeVarC2Str(currentParameter.getValueType()), "BOOL");
+    } else if (i < nbParamsReal + nbParamsBool) {
+      const unsigned int localBooleanIndex = i - nbParamsReal;
+      assert(localBooleanIndex < nbParamsBool);
+      if (currentParameter.getValueType() != VAR_TYPE_BOOL)
+        throw DYNError(Error::MODELER, ParameterInvalidTypeRequested, currentParameter.getName(), typeVarC2Str(currentParameter.getValueType()), "BOOL");
 
-        setFinalParameter(currentParameterName, simulationInfo()->booleanParameter[localBooleanIndex]);
-      }
-      else if (i < nbParamsReal + nbParamsBool + nbParamsInt)
-      {
-        const unsigned int localIntegerIndex = i - nbParamsReal - nbParamsBool;
-        assert(localIntegerIndex < nbParamsInt);
-        if (currentParameter.getValueType() != VAR_TYPE_INT)
-          throw DYNError(Error::MODELER, ParameterInvalidTypeRequested, currentParameter.getName(), typeVarC2Str(currentParameter.getValueType()), "INT");
+      setFinalParameter(currentParameterName, simulationInfo()->booleanParameter[localBooleanIndex]);
+    } else if (i < nbParamsReal + nbParamsBool + nbParamsInt) {
+      const unsigned int localIntegerIndex = i - nbParamsReal - nbParamsBool;
+      assert(localIntegerIndex < nbParamsInt);
+      if (currentParameter.getValueType() != VAR_TYPE_INT)
+        throw DYNError(Error::MODELER, ParameterInvalidTypeRequested, currentParameter.getName(), typeVarC2Str(currentParameter.getValueType()), "INT");
 
-        setFinalParameter(currentParameterName, simulationInfo()->integerParameter[localIntegerIndex]);
-      }
+      setFinalParameter(currentParameterName, simulationInfo()->integerParameter[localIntegerIndex]);
     }
   }
+}
 
-  void ModelManager::getSubModelParameterValue(const string &nameParameter, std::string &value, bool &found)
-  {
-    found = hasParameterDynamic(nameParameter);
-    if (found)
-    {
-      const ParameterModeler &parameter = findParameterDynamic(nameParameter);
-      // check that the final parameters values have been filled : if not, fill them
-      if (!parameter.hasOrigin(FINAL))
-      {
-        writeParametersFinalValues();
-      }
-
-      if (parameter.getValueType() == VAR_TYPE_STRING)
-        value = parameter.getValue<std::string>();
-      else
-        value = DYN::double2String(parameter.getDoubleValue());
+void ModelManager::getSubModelParameterValue(const string& nameParameter, std::string& value, bool& found) {
+  found = hasParameterDynamic(nameParameter);
+  if (found) {
+    const ParameterModeler& parameter = findParameterDynamic(nameParameter);
+    // check that the final parameters values have been filled : if not, fill them
+    if (!parameter.hasOrigin(FINAL)) {
+      writeParametersFinalValues();
     }
+
+    if (parameter.getValueType() == VAR_TYPE_STRING)
+      value = parameter.getValue<std::string>();
+    else
+      value = DYN::double2String(parameter.getDoubleValue());
+  }
+}
+
+void
+ModelManager::dumpVariables(map< string, string >& mapVariables) {
+  stringstream values;
+  boost::archive::binary_oarchive os(values);
+
+  string cSum = "";
+  string cSumInit = "";
+  if (hasInit()) {
+    modelModelicaInit()->checkSum(cSumInit);
+  }
+  modelModelicaDynamic()->checkSum(cSum);
+
+  unsigned int nb = static_cast<unsigned int>(modelData()->nVariablesReal);
+  vector<double> valuesReal(nb, 0.);
+  std::copy(data()->localData[0]->realVars, data()->localData[0]->realVars + nb, valuesReal.begin());
+
+  vector<double> valuesDerivatives(nb, 0.);
+  std::copy(data()->localData[0]->derivativesVars, data()->localData[0]->derivativesVars + nb, valuesDerivatives.begin());
+
+  nb = static_cast<unsigned int>(modelData()->nVariablesBoolean);
+  vector<bool> valuesBool(nb, false);
+  std::copy(data()->localData[0]->booleanVars, data()->localData[0]->booleanVars + nb, valuesBool.begin());
+
+  nb = static_cast<unsigned int>(modelData()->nVariablesInteger);
+  vector<double> valuesInt(nb, 0);
+  std::copy(data()->localData[0]->integerDoubleVars, data()->localData[0]->integerDoubleVars + nb, valuesInt.begin());
+
+  nb = data()->nbZ;
+  vector<double> valuesDiscreteReal(nb, 0.);
+  std::copy(data()->localData[0]->discreteVars, data()->localData[0]->discreteVars + nb, valuesDiscreteReal.begin());
+
+  vector<double> constCalcVars(data()->constCalcVars.size(), 0.);
+  std::copy(data()->constCalcVars.begin(), data()->constCalcVars.end(), constCalcVars.begin());
+
+  vector<double> valuesRoots(sizeG_, 0.);
+  std::copy(gLocal_, gLocal_ + sizeG_, valuesRoots.begin());
+
+  os << cSum;
+  os << cSumInit;
+  os << valuesReal;
+  os << valuesBool;
+  os << valuesInt;
+  os << valuesDiscreteReal;
+  os << valuesDerivatives;
+  os << constCalcVars;
+  os << valuesRoots;
+
+  mapVariables[ variablesFileName() ] = values.str();
+}
+
+void
+ModelManager::loadVariables(const string& variables) {
+  setManagerTime(getCurrentTime());
+  stringstream vars(variables);
+
+  boost::archive::binary_iarchive is(vars);
+  string cSumRead;
+  string cSumInitRead;
+  string cSumInit;
+  string cSum;
+  vector<double> valuesReal;
+  vector<bool> valuesBool;
+  vector<double> valuesInt;
+  vector<double> valuesDiscreteReal;
+  vector<double> valuesDerivatives;
+  vector<double> constCalcVars;
+  vector<double> valuesRoots;
+
+  is >> cSumRead;
+  is >> cSumInitRead;
+
+  is >> valuesReal;
+  is >> valuesBool;
+  is >> valuesInt;
+  is >> valuesDiscreteReal;
+  is >> valuesDerivatives;
+  is >> constCalcVars;
+  is >> valuesRoots;
+
+  if (hasInit()) {
+    modelModelicaInit()->checkSum(cSumInit);
+  }
+  modelModelicaDynamic()->checkSum(cSum);
+
+  if (cSumRead != cSum || cSumInitRead != cSumInit)
+    throw DYNError(Error::MODELER, WrongCheckSum, variablesFileName().c_str());
+
+  if (static_cast<unsigned>(modelData()->nVariablesReal) != valuesReal.size())
+    throw DYNError(Error::MODELER, WrongDataNum, variablesFileName().c_str());
+
+  if (static_cast<unsigned>(modelData()->nVariablesInteger) != valuesInt.size())
+    throw DYNError(Error::MODELER, WrongDataNum, variablesFileName().c_str());
+
+  if (static_cast<unsigned>(modelData()->nVariablesBoolean) != valuesBool.size())
+    throw DYNError(Error::MODELER, WrongDataNum, variablesFileName().c_str());
+
+  if (static_cast<unsigned>(data()->nbZ) != valuesDiscreteReal.size())
+    throw DYNError(Error::MODELER, WrongDataNum, variablesFileName().c_str());
+
+  if (data()->constCalcVars.size() != constCalcVars.size())
+    throw DYNError(Error::MODELER, WrongDataNum, variablesFileName().c_str());
+
+  if (sizeG_ != valuesRoots.size())
+    throw DYNError(Error::MODELER, WrongDataNum, variablesFileName().c_str());
+
+  std::copy(valuesReal.begin(), valuesReal.end(), data()->localData[0]->realVars);
+  std::copy(valuesDerivatives.begin(), valuesDerivatives.end(), data()->localData[0]->derivativesVars);
+  std::copy(valuesInt.begin(), valuesInt.end(), data()->localData[0]->integerDoubleVars);
+  std::copy(valuesBool.begin(), valuesBool.end(), data()->localData[0]->booleanVars);
+  std::copy(valuesDiscreteReal.begin(), valuesDiscreteReal.end(), data()->localData[0]->discreteVars);
+  std::copy(constCalcVars.begin(), constCalcVars.end(), data()->constCalcVars.begin());
+  std::copy(valuesRoots.begin(), valuesRoots.end(), gLocal_);
+}
+
+void
+ModelManager::loadParameters(const string& parameters) {
+  stringstream params(parameters);
+
+  boost::archive::binary_iarchive is(params);
+
+  string cSumRead;
+  string cSumInitRead;
+  vector<double> parameterDoubleValues;
+  vector<bool> parameterBoolValues;
+  vector<int> parameterIntValues;
+  vector<string> parameterStringValues;
+  is >> cSumRead;
+  is >> cSumInitRead;
+
+  is >> parameterDoubleValues;
+  is >> parameterBoolValues;
+  is >> parameterIntValues;
+  is >> parameterStringValues;
+
+  string cSum = "";
+  string cSumInit = "";
+  if (hasInit()) {
+    modelModelicaInit()->checkSum(cSumInit);
   }
 
-  void
-  ModelManager::dumpVariables(map<string, string> &mapVariables)
-  {
-    stringstream values;
-    boost::archive::binary_oarchive os(values);
+  modelModelicaDynamic()->checkSum(cSum);
 
-    string cSum = "";
-    string cSumInit = "";
-    if (hasInit())
-    {
-      modelModelicaInit()->checkSum(cSumInit);
-    }
-    modelModelicaDynamic()->checkSum(cSum);
+  if (cSumRead != cSum || cSumInitRead != cSumInit)
+    throw DYNError(Error::MODELER, WrongCheckSum, parametersFileName().c_str());
 
-    unsigned int nb = static_cast<unsigned int>(modelData()->nVariablesReal);
-    vector<double> valuesReal(nb, 0.);
-    std::copy(data()->localData[0]->realVars, data()->localData[0]->realVars + nb, valuesReal.begin());
+  if (parameterDoubleValues.size() != static_cast<unsigned>(modelData()->nParametersReal))
+    throw DYNError(Error::MODELER, WrongDataNum, parametersFileName().c_str());
 
-    vector<double> valuesDerivatives(nb, 0.);
-    std::copy(data()->localData[0]->derivativesVars, data()->localData[0]->derivativesVars + nb, valuesDerivatives.begin());
+  if (parameterBoolValues.size() != static_cast<unsigned>(modelData()->nParametersBoolean))
+    throw DYNError(Error::MODELER, WrongDataNum, parametersFileName().c_str());
 
-    nb = static_cast<unsigned int>(modelData()->nVariablesBoolean);
-    vector<bool> valuesBool(nb, false);
-    std::copy(data()->localData[0]->booleanVars, data()->localData[0]->booleanVars + nb, valuesBool.begin());
+  if (parameterIntValues.size() != static_cast<unsigned>(modelData()->nParametersInteger))
+    throw DYNError(Error::MODELER, WrongDataNum, parametersFileName().c_str());
 
-    nb = static_cast<unsigned int>(modelData()->nVariablesInteger);
-    vector<double> valuesInt(nb, 0);
-    std::copy(data()->localData[0]->integerDoubleVars, data()->localData[0]->integerDoubleVars + nb, valuesInt.begin());
+  if (parameterStringValues.size() < static_cast<unsigned>(modelData()->nParametersString))
+    throw DYNError(Error::MODELER, WrongDataNum, parametersFileName().c_str());
 
-    nb = data()->nbZ;
-    vector<double> valuesDiscreteReal(nb, 0.);
-    std::copy(data()->localData[0]->discreteVars, data()->localData[0]->discreteVars + nb, valuesDiscreteReal.begin());
+  // loading of read parameters
+  for (unsigned int i = 0; i < static_cast<unsigned>(modelData()->nParametersString); ++i)
+    simulationInfo()->stringParameter[i] = parameterStringValues[i].c_str();
 
-    vector<double> constCalcVars(data()->constCalcVars.size(), 0.);
-    std::copy(data()->constCalcVars.begin(), data()->constCalcVars.end(), constCalcVars.begin());
+  std::vector<std::string> delay_def(parameterStringValues.begin() + static_cast<unsigned>(modelData()->nParametersString), parameterStringValues.end());
 
-    vector<double> valuesRoots(sizeG_, 0.);
-    std::copy(gLocal_, gLocal_ + sizeG_, valuesRoots.begin());
-
-    os << cSum;
-    os << cSumInit;
-    os << valuesReal;
-    os << valuesBool;
-    os << valuesInt;
-    os << valuesDiscreteReal;
-    os << valuesDerivatives;
-    os << constCalcVars;
-    os << valuesRoots;
-
-    mapVariables[variablesFileName()] = values.str();
+  if (!delayManager_.loadDelays(delay_def)) {
+    throw DYNError(Error::MODELER, WrongDataNum, parametersFileName().c_str());
   }
 
-  void
-  ModelManager::loadVariables(const string &variables)
-  {
-    setManagerTime(getCurrentTime());
-    stringstream vars(variables);
-
-    boost::archive::binary_iarchive is(vars);
-    string cSumRead;
-    string cSumInitRead;
-    string cSumInit;
-    string cSum;
-    vector<double> valuesReal;
-    vector<bool> valuesBool;
-    vector<double> valuesInt;
-    vector<double> valuesDiscreteReal;
-    vector<double> valuesDerivatives;
-    vector<double> constCalcVars;
-    vector<double> valuesRoots;
-
-    is >> cSumRead;
-    is >> cSumInitRead;
-
-    is >> valuesReal;
-    is >> valuesBool;
-    is >> valuesInt;
-    is >> valuesDiscreteReal;
-    is >> valuesDerivatives;
-    is >> constCalcVars;
-    is >> valuesRoots;
-
-    if (hasInit())
-    {
-      modelModelicaInit()->checkSum(cSumInit);
-    }
-    modelModelicaDynamic()->checkSum(cSum);
-
-    if (cSumRead != cSum || cSumInitRead != cSumInit)
-      throw DYNError(Error::MODELER, WrongCheckSum, variablesFileName().c_str());
-
-    if (static_cast<unsigned>(modelData()->nVariablesReal) != valuesReal.size())
-      throw DYNError(Error::MODELER, WrongDataNum, variablesFileName().c_str());
-
-    if (static_cast<unsigned>(modelData()->nVariablesInteger) != valuesInt.size())
-      throw DYNError(Error::MODELER, WrongDataNum, variablesFileName().c_str());
-
-    if (static_cast<unsigned>(modelData()->nVariablesBoolean) != valuesBool.size())
-      throw DYNError(Error::MODELER, WrongDataNum, variablesFileName().c_str());
-
-    if (static_cast<unsigned>(data()->nbZ) != valuesDiscreteReal.size())
-      throw DYNError(Error::MODELER, WrongDataNum, variablesFileName().c_str());
-
-    if (data()->constCalcVars.size() != constCalcVars.size())
-      throw DYNError(Error::MODELER, WrongDataNum, variablesFileName().c_str());
-
-    if (sizeG_ != valuesRoots.size())
-      throw DYNError(Error::MODELER, WrongDataNum, variablesFileName().c_str());
-
-    std::copy(valuesReal.begin(), valuesReal.end(), data()->localData[0]->realVars);
-    std::copy(valuesDerivatives.begin(), valuesDerivatives.end(), data()->localData[0]->derivativesVars);
-    std::copy(valuesInt.begin(), valuesInt.end(), data()->localData[0]->integerDoubleVars);
-    std::copy(valuesBool.begin(), valuesBool.end(), data()->localData[0]->booleanVars);
-    std::copy(valuesDiscreteReal.begin(), valuesDiscreteReal.end(), data()->localData[0]->discreteVars);
-    std::copy(constCalcVars.begin(), constCalcVars.end(), data()->constCalcVars.begin());
-    std::copy(valuesRoots.begin(), valuesRoots.end(), gLocal_);
+  // copy of loaded parameters in the map
+  const boost::unordered_map<string, ParameterModeler>& parametersMap = (this)->getParametersDynamic();
+  // We need ordered parameters as Modelica structures are ordered in a certain way and we want to stick to this order to recover the param
+  vector<string> parametersList(parametersMap.size(), "TMP");
+  for (ParamIterator it = parametersMap.begin(), itEnd = parametersMap.end(); it != itEnd; ++it) {
+    const ParameterModeler& currentParameter = it->second;
+    parametersList[currentParameter.getIndex()] = it->first;
   }
-
-  void
-  ModelManager::loadParameters(const string &parameters)
-  {
-    stringstream params(parameters);
-
-    boost::archive::binary_iarchive is(params);
-
-    string cSumRead;
-    string cSumInitRead;
-    vector<double> parameterDoubleValues;
-    vector<bool> parameterBoolValues;
-    vector<int> parameterIntValues;
-    vector<string> parameterStringValues;
-    is >> cSumRead;
-    is >> cSumInitRead;
-
-    is >> parameterDoubleValues;
-    is >> parameterBoolValues;
-    is >> parameterIntValues;
-    is >> parameterStringValues;
-
-    string cSum = "";
-    string cSumInit = "";
-    if (hasInit())
-    {
-      modelModelicaInit()->checkSum(cSumInit);
-    }
-
-    modelModelicaDynamic()->checkSum(cSum);
-
-    if (cSumRead != cSum || cSumInitRead != cSumInit)
-      throw DYNError(Error::MODELER, WrongCheckSum, parametersFileName().c_str());
-
-    if (parameterDoubleValues.size() != static_cast<unsigned>(modelData()->nParametersReal))
-      throw DYNError(Error::MODELER, WrongDataNum, parametersFileName().c_str());
-
-    if (parameterBoolValues.size() != static_cast<unsigned>(modelData()->nParametersBoolean))
-      throw DYNError(Error::MODELER, WrongDataNum, parametersFileName().c_str());
-
-    if (parameterIntValues.size() != static_cast<unsigned>(modelData()->nParametersInteger))
-      throw DYNError(Error::MODELER, WrongDataNum, parametersFileName().c_str());
-
-    if (parameterStringValues.size() < static_cast<unsigned>(modelData()->nParametersString))
-      throw DYNError(Error::MODELER, WrongDataNum, parametersFileName().c_str());
-
-    // loading of read parameters
-    for (unsigned int i = 0; i < static_cast<unsigned>(modelData()->nParametersString); ++i)
-      simulationInfo()->stringParameter[i] = parameterStringValues[i].c_str();
-
-    std::vector<std::string> delay_def(parameterStringValues.begin() + static_cast<unsigned>(modelData()->nParametersString), parameterStringValues.end());
-
-    if (!delayManager_.loadDelays(delay_def))
-    {
-      throw DYNError(Error::MODELER, WrongDataNum, parametersFileName().c_str());
-    }
-
-    // copy of loaded parameters in the map
-    const boost::unordered_map<string, ParameterModeler> &parametersMap = (this)->getParametersDynamic();
-    // We need ordered parameters as Modelica structures are ordered in a certain way and we want to stick to this order to recover the param
-    vector<string> parametersList(parametersMap.size(), "TMP");
-    for (ParamIterator it = parametersMap.begin(), itEnd = parametersMap.end(); it != itEnd; ++it)
-    {
-      const ParameterModeler &currentParameter = it->second;
-      parametersList[currentParameter.getIndex()] = it->first;
-    }
-    for (unsigned int i = 0; i < modelData()->nParametersReal; ++i)
-    {
-      const ParameterModeler &currentParameter = parametersMap.at(parametersList[i]);
-      switch (currentParameter.getValueType())
-      {
+  for (unsigned int i = 0; i < modelData()->nParametersReal; ++i) {
+    const ParameterModeler& currentParameter = parametersMap.at(parametersList[i]);
+    switch (currentParameter.getValueType()) {
       case VAR_TYPE_DOUBLE:
       {
         setLoadedParameter(currentParameter.getName(), parameterDoubleValues[i]);
@@ -969,7 +867,7 @@ namespace DYN
       }
       case VAR_TYPE_INT:
       {
-        setLoadedParameter(currentParameter.getName(), static_cast<int>(parameterDoubleValues[i]));
+        setLoadedParameter(currentParameter.getName(), static_cast<int> (parameterDoubleValues[i]));
         break;
       }
       case VAR_TYPE_BOOL:
