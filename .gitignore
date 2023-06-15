@@ -256,9 +256,9 @@ curvesOutput
 
 ### VisualStudioCode ###
 .vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
+# !.vscode/settings.json
+# !.vscode/tasks.json
+# !.vscode/launch.json
 #!.vscode/extensions.json
 *.code-workspace
 
@@ -267,3 +267,5 @@ curvesOutput
 .history
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode
+
+myEnvDynawo.sh

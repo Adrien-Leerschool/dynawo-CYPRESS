@@ -25,6 +25,7 @@
 #define COMMON_DYNTERMINATE_H_
 
 #include <stdio.h>
+
 #include <string>
 
 namespace DYN {
@@ -36,7 +37,8 @@ class Message;
 class Terminate : public std::exception {
  public:
   /**
-   * @brief Copy constructor. Creates a new Terminate with same attributes as the object given
+   * @brief Copy constructor. Creates a new Terminate with same attributes as
+   * the object given
    * @param t terminate to copy
    */
   Terminate(const Terminate& t);
@@ -50,7 +52,8 @@ class Terminate : public std::exception {
   explicit Terminate(const Message& m);
 
   /**
-   * @brief Copy constructor. Creates a new Terminate with same attributes as the given object
+   * @brief Copy constructor. Creates a new Terminate with same attributes as
+   * the given object
    *
    *
    * @param t terminate to copy
@@ -69,7 +72,7 @@ class Terminate : public std::exception {
    * @brief default destructor
    *
    */
-  virtual ~Terminate() noexcept { }
+  virtual ~Terminate() noexcept {}
 
   /**
    * @brief Operator << overload for error
@@ -81,7 +84,7 @@ class Terminate : public std::exception {
    * @return reference to the stream instance
    *
    */
-  friend std::ostream & operator<<(std::ostream& os, const Terminate& t) {
+  friend std::ostream& operator<<(std::ostream& os, const Terminate& t) {
     os << t.msgToReturn_;
     return os;
   }
@@ -93,9 +96,9 @@ class Terminate : public std::exception {
   Terminate();
 
  private:
-  std::string msgToReturn_;  ///< string message to return when terminate is called
+  std::string
+      msgToReturn_;  ///< string message to return when terminate is called
 };
 }  // namespace DYN
-
 
 #endif  // COMMON_DYNTERMINATE_H_
